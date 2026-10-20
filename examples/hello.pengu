@@ -1,0 +1,39 @@
+## Minimal WebUI application.
+##
+##     pengu run examples/hello.pengu
+##
+## It opens a native window whose page is embedded HTML. The button calls the
+## PenguScript weave bound as "myFunction"; the click callback returns a string
+## that the page prints.
+import webui
+
+weave on_click with e as ref to webui_event_t into void:
+    calling webui.return_string with e, "Hello from PenguScript!"
+
+weave main into int:
+    var window as size_t is calling webui.new_window
+    calling webui.bind with window, "myFunction", on_click
+
+    let page as ref to frozen char is r"""
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"><title>PenguScript + WebUI</title></head>
+        <body style="font-family: sans-serif; padding: 2rem">
+          <h1>PenguScript + WebUI</h1>
+          <button onclick="myFunction().then(show)">Call PenguScript</button>
+          <pre id="out"></pre>
+          <script>
+            function show(response) {
+              document.getElementById('out').textContent = response;
+            }
+          </script>
+          <script src="/webui.js"></script>
+        </body>
+        </html>
+        """
+
+    var shown as bool is calling webui.show with window, page
+    if not shown:
+        return 1
+    calling webui.wait
+    return 0

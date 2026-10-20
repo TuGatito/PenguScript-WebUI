@@ -1,0 +1,1014 @@
+## PenguScript declaration binding for the WebUI C library (include/webui.h).
+##
+## GENERATED FILE - do not edit by hand. Regenerate with:
+##
+##     python3 tools/generate_binding.py
+##
+## which runs
+##
+##     pengu bind include/webui.h --prefix webui_ --output pengu/webui.d.pengu \
+##         --links webui --cpp-flags=-U__linux__
+##
+## and then applies what `pengu bind` cannot express for this header: the enum
+## tag typedefs from include/webui_pengu.h, inline callback types, the
+## WEBUI_VERSION constant and the per-platform link lines.  See
+## tools/generate_binding.py for the details.
+##
+## Consumers use it with:
+##
+##     import webui
+##     var window as size_t is calling webui.new_window
+##     calling webui.show with window, "<html><body>Hello</body></html>"
+##     calling webui.wait
+include "webui.h"
+include "webui_pengu.h"
+
+# Native libraries this binding needs. `link` statements propagate to the
+# consumer's link line automatically (see docs/BINDINGS.md).
+when os == "windows":
+    link "webui"
+    link "ws2_32"
+    link "ole32"
+    link "shell32"
+    link "user32"
+else when os == "linux":
+    link "webui"
+    link "pthread"
+    link "dl"
+    link "m"
+else:
+    link "webui"
+
+# -- Constants (#define) ------------------------------
+
+const WEBUI_VERSION as string is "2.5.0-beta.3"
+const WEBUI_MAX_IDS as i64 is 256
+const WEBUI_MAX_ARG as i64 is 16
+
+# ------------------------------------------------------------------
+# Types (structs, unions, enums, aliases)
+# ------------------------------------------------------------------
+
+# -- Enums ---------------------------
+omen webui_browser:
+    NoBrowser is 0
+    AnyBrowser is 1
+    Chrome is 2
+    Firefox is 3
+    Edge is 4
+    Safari is 5
+    Chromium is 6
+    Opera is 7
+    Brave is 8
+    Vivaldi is 9
+    Epic is 10
+    Yandex is 11
+    ChromiumBased is 12
+    Webview is 13
+
+omen webui_runtime:
+    None is 0
+    Deno is 1
+    NodeJS is 2
+    Bun is 3
+
+omen webui_event:
+    WEBUI_EVENT_DISCONNECTED is 0
+    WEBUI_EVENT_CONNECTED is 1
+    WEBUI_EVENT_MOUSE_CLICK is 2
+    WEBUI_EVENT_NAVIGATION is 3
+    WEBUI_EVENT_CALLBACK is 4
+
+omen webui_config:
+    show_wait_connection is 0
+    ui_event_blocking is 1
+    folder_monitor is 2
+    multi_client is 3
+    use_cookies is 4
+    asynchronous_response is 5
+
+rune webui_event_t:
+    window as size_t
+    event_type as size_t
+    element as ref to char
+    event_number as size_t
+    bind_id as size_t
+    client_id as size_t
+    connection_id as size_t
+    cookies as ref to char
+
+# ------------------------------------------------------------------
+# Functions (every name receives the insignia prefix)
+# ------------------------------------------------------------------
+
+insignia webui_
+
+# @brief Create a new WebUI window object.
+#
+# @return Returns the window number.
+#
+# @example size_t myWindow = webui_new_window();
+declare new_window into size_t
+
+# @brief Create a new webui window object using a specified window number.
+#
+# @param window_number The window number (should be > 0, and < WEBUI_MAX_IDS)
+#
+# @return Returns the same window number if success.
+#
+# @example size_t myWindow = webui_new_window_id(123);
+declare new_window_id with window_number as size_t into size_t
+
+# @brief Get a free window number that can be used with
+# `webui_new_window_id()`.
+#
+# @return Returns the first available free window number. Starting from 1.
+#
+# @example size_t myWindowNumber = webui_get_new_window_id();
+declare get_new_window_id into size_t
+
+# @brief Bind an HTML element and a JavaScript object with a backend function. Empty
+# element name means all events.
+#
+# @param window The window number
+# @param element The HTML element / JavaScript object
+# @param func The callback function
+#
+# @return Returns a unique bind ID.
+#
+# @example webui_bind(myWindow, "myFunction", myFunction);
+declare bind with window as size_t, element as ref to frozen char, func as ref to weave with e as ref to webui_event_t into void into size_t
+
+# @brief Use this API after using `webui_bind()` to add any user data to it that can be
+# read later using `webui_get_context()`.
+#
+# @param window The window number
+# @param element The HTML element / JavaScript object
+# @param context Any user data
+#
+# @example
+# webui_bind(myWindow, "myFunction", myFunction);
+#
+# webui_set_context(myWindow, "myFunction", myData);
+#
+# void myFunction(webui_event_t* e) {
+# void* myData = webui_get_context(e);
+# }
+declare set_context with window as size_t, element as ref to frozen char, context as ref to void into void
+
+# @brief Get user data that is set using `webui_set_context()`.
+#
+# @param e The event struct
+#
+# @return Returns user data pointer.
+#
+# @example
+# webui_bind(myWindow, "myFunction", myFunction);
+#
+# webui_set_context(myWindow, "myFunction", myData);
+#
+# void myFunction(webui_event_t* e) {
+# void* myData = webui_get_context(e);
+# }
+declare get_context with e as ref to webui_event_t into ref to void
+
+# @brief Get the recommended web browser ID to use. If you
+# are already using one, this function will return the same ID.
+#
+# @param window The window number
+#
+# @return Returns a web browser ID.
+#
+# @example size_t browserID = webui_get_best_browser(myWindow);
+declare get_best_browser with window as size_t into size_t
+
+# @brief Show a window using embedded HTML, or a file. If the window is already
+# open, it will be refreshed. This will refresh all windows in multi-client mode.
+#
+# @param window The window number
+# @param content The HTML, URL, Or a local file
+#
+# @return Returns True if showing the window is successed.
+#
+# @example webui_show(myWindow, "<html>...</html>"); |
+# webui_show(myWindow, "index.html"); | webui_show(myWindow, "http://...");
+declare show with window as size_t, content as ref to frozen char into bool
+
+# @brief Show a window using embedded HTML, or a file. If the window is already
+# open, it will be refreshed. Single client.
+#
+# @param e The event struct
+# @param content The HTML, URL, Or a local file
+#
+# @return Returns True if showing the window is successed.
+#
+# @example webui_show_client(e, "<html>...</html>"); |
+# webui_show_client(e, "index.html"); | webui_show_client(e, "http://...");
+declare show_client with e as ref to webui_event_t, content as ref to frozen char into bool
+
+# @brief Same as `webui_show()`. But using a specific web browser.
+#
+# @param window The window number
+# @param content The HTML, Or a local file
+# @param browser The web browser to be used
+#
+# @return Returns True if showing the window is successed.
+#
+# @example webui_show_browser(myWindow, "<html>...</html>", Chrome); |
+# webui_show(myWindow, "index.html", Firefox);
+declare show_browser with window as size_t, content as ref to frozen char, browser as size_t into bool
+
+# @brief Same as `webui_show()`. But start only the web server and return the URL.
+# No window will be shown.
+#
+# @param window The window number
+# @param content The HTML, Or a local file
+#
+# @return Returns the url of this window server.
+#
+# @example const char* url = webui_start_server(myWindow, "/full/root/path");
+declare start_server with window as size_t, content as ref to frozen char into ref to frozen char
+
+# @brief Show a WebView window using embedded HTML, or a file. If the window is already
+# open, it will be refreshed. Note: Win32 need `WebView2Loader.dll`.
+#
+# @param window The window number
+# @param content The HTML, URL, Or a local file
+#
+# @return Returns True if showing the WebView window is successed.
+#
+# @example webui_show_wv(myWindow, "<html>...</html>"); | webui_show_wv(myWindow,
+# "index.html"); | webui_show_wv(myWindow, "http://...");
+declare show_wv with window as size_t, content as ref to frozen char into bool
+
+# @brief Set the window in Kiosk mode (Full screen).
+#
+# @param window The window number
+# @param status True or False
+#
+# @example webui_set_kiosk(myWindow, true);
+declare set_kiosk with window as size_t, status as bool into void
+
+# @brief Add a user-defined web browser's CLI parameters.
+#
+# @param window The window number
+# @param params Command line parameters
+#
+# @example webui_set_custom_parameters(myWindow, "--remote-debugging-port=9222");
+declare set_custom_parameters with window as size_t, params as ref to char into void
+
+# @brief Set the window with high-contrast support. Useful when you want to
+# build a better high-contrast theme with CSS.
+#
+# @param window The window number
+# @param status True or False
+#
+# @example webui_set_high_contrast(myWindow, true);
+declare set_high_contrast with window as size_t, status as bool into void
+
+# @brief Get OS high contrast preference.
+#
+# @return Returns True if OS is using high contrast theme
+#
+# @example bool hc = webui_is_high_contrast();
+declare is_high_contrast into bool
+
+# @brief Check if a web browser is installed.
+#
+# @return Returns True if the specified browser is available
+#
+# @example bool status = webui_browser_exist(Chrome);
+declare browser_exist with browser as size_t into bool
+
+# @brief Wait until all opened windows get closed.
+#
+# @example webui_wait();
+declare wait into void
+
+# @brief Close a specific window only. The window object will still exist.
+# All clients.
+#
+# @param window The window number
+#
+# @example webui_close(myWindow);
+declare close with window as size_t into void
+
+# @brief Close a specific client.
+#
+# @param e The event struct
+#
+# @example webui_close_client(e);
+declare close_client with e as ref to webui_event_t into void
+
+# @brief Close a specific window and free all memory resources.
+#
+# @param window The window number
+#
+# @example webui_destroy(myWindow);
+declare destroy with window as size_t into void
+
+# @brief Close all open windows. `webui_wait()` will return (Break).
+#
+# @example webui_exit();
+declare exit into void
+
+# @brief Set the web-server root folder path for a specific window.
+#
+# @param window The window number
+# @param path The local folder full path
+#
+# @example webui_set_root_folder(myWindow, "/home/Foo/Bar/");
+declare set_root_folder with window as size_t, path as ref to frozen char into bool
+
+# @brief Set the web-server root folder path for all windows. Should be used
+# before `webui_show()`.
+#
+# @param path The local folder full path
+#
+# @example webui_set_default_root_folder("/home/Foo/Bar/");
+declare set_default_root_folder with path as ref to frozen char into bool
+
+# @brief Set a custom handler to serve files. This custom handler should
+# return full HTTP header and body.
+# This deactivates any previous handler set with `webui_set_file_handler_window`
+#
+# @param window The window number
+# @param handler The handler function: `void myHandler(const char* filename,
+# int* length)`
+#
+# @example webui_set_file_handler(myWindow, myHandlerFunction);
+declare set_file_handler with window as size_t, handler as ref to weave with filename as ref to frozen char, length as ref to int into ref to frozen void into void
+
+# @brief Set a custom handler to serve files. This custom handler should
+# return full HTTP header and body.
+# This deactivates any previous handler set with `webui_set_file_handler`
+#
+# @param window The window number
+# @param handler The handler function: `void myHandler(size_t window, const char* filename,
+# int* length)`
+#
+# @example webui_set_file_handler_window(myWindow, myHandlerFunction);
+declare set_file_handler_window with window as size_t, handler as ref to weave with window as size_t, filename as ref to frozen char, length as ref to int into ref to frozen void into void
+
+# @brief Use this API to set a file handler response if your backend need async
+# response for `webui_set_file_handler()`.
+#
+# @param window The window number
+# @param response The response buffer
+# @param length The response size
+#
+# @example webui_interface_set_response_file_handler(myWindow, buffer, 1024);
+declare interface_set_response_file_handler with window as size_t, response as ref to frozen void, length as int into void
+
+# @brief Check if the specified window is still running.
+#
+# @param window The window number
+#
+# @example webui_is_shown(myWindow);
+declare is_shown with window as size_t into bool
+
+# @brief Set the maximum time in seconds to wait for the window to connect.
+# This effect `show()` and `wait()`. Value of `0` means wait forever.
+#
+# @param second The timeout in seconds
+#
+# @example webui_set_timeout(30);
+declare set_timeout with second as size_t into void
+
+# @brief Set the default embedded HTML favicon.
+#
+# @param window The window number
+# @param icon The icon as string: `<svg>...</svg>`
+# @param icon_type The icon type: `image/svg+xml`
+#
+# @example webui_set_icon(myWindow, "<svg>...</svg>", "image/svg+xml");
+declare set_icon with window as size_t, icon as ref to frozen char, icon_type as ref to frozen char into void
+
+# @brief Encode text to Base64. The returned buffer need to be freed.
+#
+# @param str The string to encode (Should be null terminated)
+#
+# @return Returns the base64 encoded string
+#
+# @example char* base64 = webui_encode("Foo Bar");
+declare encode with str as ref to frozen char into ref to char
+
+# @brief Decode a Base64 encoded text. The returned buffer need to be freed.
+#
+# @param str The string to decode (Should be null terminated)
+#
+# @return Returns the base64 decoded string
+#
+# @example char* str = webui_decode("SGVsbG8=");
+declare decode with str as ref to frozen char into ref to char
+
+# @brief Safely free a buffer allocated by WebUI using `webui_malloc()`.
+#
+# @param ptr The buffer to be freed
+#
+# @example webui_free(myBuffer);
+declare free with ptr as ref to void into void
+
+# @brief Safely allocate memory using the WebUI memory management system. It
+# can be safely freed using `webui_free()` at any time.
+#
+# @param size The size of memory in bytes
+#
+# @example char* myBuffer = (char*)webui_malloc(1024);
+declare malloc with size as size_t into ref to void
+
+# @brief Copy raw data.
+#
+# @param dest Destination memory pointer
+# @param src Source memory pointer
+# @param count Bytes to copy
+#
+# @example webui_memcpy(myBuffer, myData, 64);
+declare memcpy with dest as ref to void, src as ref to void, count as size_t into void
+
+# @brief Safely send raw data to the UI. All clients.
+#
+# @param window The window number
+# @param function The JavaScript function to receive raw data: `function
+# myFunc(myData){}`
+# @param raw The raw data buffer
+# @param size The raw data size in bytes
+#
+# @example webui_send_raw(myWindow, "myJavaScriptFunc", myBuffer, 64);
+declare send_raw with window as size_t, function as ref to frozen char, raw as ref to frozen void, size as size_t into void
+
+# @brief Safely send raw data to the UI. Single client.
+#
+# @param e The event struct
+# @param function The JavaScript function to receive raw data: `function
+# myFunc(myData){}`
+# @param raw The raw data buffer
+# @param size The raw data size in bytes
+#
+# @example webui_send_raw_client(e, "myJavaScriptFunc", myBuffer, 64);
+declare send_raw_client with e as ref to webui_event_t, function as ref to frozen char, raw as ref to frozen void, size as size_t into void
+
+# @brief Set a window in hidden mode. Should be called before `webui_show()`.
+#
+# @param window The window number
+# @param status The status: True or False
+#
+# @example webui_set_hide(myWindow, True);
+declare set_hide with window as size_t, status as bool into void
+
+# @brief Set the window size.
+#
+# @param window The window number
+# @param width The window width
+# @param height The window height
+#
+# @example webui_set_size(myWindow, 800, 600);
+declare set_size with window as size_t, width as u32, height as u32 into void
+
+# @brief Set the window minimum size.
+#
+# @param window The window number
+# @param width The window width
+# @param height The window height
+#
+# @example webui_set_minimum_size(myWindow, 800, 600);
+declare set_minimum_size with window as size_t, width as u32, height as u32 into void
+
+# @brief Set the window position.
+#
+# @param window The window number
+# @param x The window X
+# @param y The window Y
+#
+# @example webui_set_position(myWindow, 100, 100);
+declare set_position with window as size_t, x as u32, y as u32 into void
+
+# @brief Set the web browser profile to use. An empty `name` and `path` means
+# the default user profile. Need to be called before `webui_show()`.
+#
+# @param window The window number
+# @param name The web browser profile name
+# @param path The web browser profile full path
+#
+# @example webui_set_profile(myWindow, "Bar", "/Home/Foo/Bar"); |
+# webui_set_profile(myWindow, "", "");
+declare set_profile with window as size_t, name as ref to frozen char, path as ref to frozen char into void
+
+# @brief Set the web browser proxy server to use. Need to be called before `webui_show()`.
+#
+# @param window The window number
+# @param proxy_server The web browser proxy_server
+#
+# @example webui_set_proxy(myWindow, "http://127.0.0.1:8888");
+declare set_proxy with window as size_t, proxy_server as ref to frozen char into void
+
+# @brief Get current URL of a running window.
+#
+# @param window The window number
+#
+# @return Returns the full URL string
+#
+# @example const char* url = webui_get_url(myWindow);
+declare get_url with window as size_t into ref to frozen char
+
+# @brief Open an URL in the native default web browser.
+#
+# @param url The URL to open
+#
+# @example webui_open_url("https://webui.me");
+declare open_url with url as ref to frozen char into void
+
+# @brief Allow a specific window address to be accessible from a public network.
+#
+# @param window The window number
+# @param status True or False
+#
+# @example webui_set_public(myWindow, true);
+declare set_public with window as size_t, status as bool into void
+
+# @brief Navigate to a specific URL. All clients.
+#
+# @param window The window number
+# @param url Full HTTP URL
+#
+# @example webui_navigate(myWindow, "http://domain.com");
+declare navigate with window as size_t, url as ref to frozen char into void
+
+# @brief Navigate to a specific URL. Single client.
+#
+# @param e The event struct
+# @param url Full HTTP URL
+#
+# @example webui_navigate_client(e, "http://domain.com");
+declare navigate_client with e as ref to webui_event_t, url as ref to frozen char into void
+
+# @brief Free all memory resources. Should be called only at the end.
+#
+# @example
+# webui_wait();
+# webui_clean();
+declare clean into void
+
+# @brief Delete all local web-browser profiles folder. It should be called at the
+# end.
+#
+# @example
+# webui_wait();
+# webui_delete_all_profiles();
+# webui_clean();
+declare delete_all_profiles into void
+
+# @brief Delete a specific window web-browser local folder profile.
+#
+# @param window The window number
+#
+# @example
+# webui_wait();
+# webui_delete_profile(myWindow);
+# webui_clean();
+#
+# @note This can break functionality of other windows if using the same
+# web-browser.
+declare delete_profile with window as size_t into void
+
+# @brief Get the ID of the parent process (The web browser may re-create
+# another new process).
+#
+# @param window The window number
+#
+# @return Returns the the parent process id as integer
+#
+# @example size_t id = webui_get_parent_process_id(myWindow);
+declare get_parent_process_id with window as size_t into size_t
+
+# @brief Get the ID of the last child process.
+#
+# @param window The window number
+#
+# @return Returns the the child process id as integer
+#
+# @example size_t id = webui_get_child_process_id(myWindow);
+declare get_child_process_id with window as size_t into size_t
+
+# @brief Gets Win32 window `HWND`. More reliable with WebView
+# than web browser window, as browser PIDs may change on launch.
+#
+# @param window The window number
+#
+# @return Returns the window `hwnd` as `void*`
+#
+# @example HWND hwnd = webui_win32_get_hwnd(myWindow);
+declare win32_get_hwnd with window as size_t into ref to void
+
+# @brief Get the network port of a running window.
+# This can be useful to determine the HTTP link of `webui.js`
+#
+# @param window The window number
+#
+# @return Returns the network port of the window
+#
+# @example size_t port = webui_get_port(myWindow);
+declare get_port with window as size_t into size_t
+
+# @brief Set a custom web-server/websocket network port to be used by WebUI.
+# This can be useful to determine the HTTP link of `webui.js` in case
+# you are trying to use WebUI with an external web-server like NGNIX.
+#
+# @param window The window number
+# @param port The web-server network port WebUI should use
+#
+# @return Returns True if the port is free and usable by WebUI
+#
+# @example bool ret = webui_set_port(myWindow, 8080);
+declare set_port with window as size_t, port as size_t into bool
+
+# @brief Get an available usable free network port.
+#
+# @return Returns a free port
+#
+# @example size_t port = webui_get_free_port();
+declare get_free_port into size_t
+
+# @brief Control the WebUI behaviour. It's recommended to be called at the beginning.
+#
+# @param option The desired option from `webui_config` enum
+# @param status The status of the option, `true` or `false`
+#
+# @example webui_set_config(show_wait_connection, false);
+declare set_config with option as webui_config, status as bool into void
+
+# @brief Control if UI events comming from this window should be processed
+# one a time in a single blocking thread `True`, or process every event in
+# a new non-blocking thread `False`. This update single window. You can use
+# `webui_set_config(ui_event_blocking, ...)` to update all windows.
+#
+# @param window The window number
+# @param status The blocking status `true` or `false`
+#
+# @example webui_set_event_blocking(myWindow, true);
+declare set_event_blocking with window as size_t, status as bool into void
+
+# @brief Get the HTTP mime type of a file.
+#
+# @return Returns the HTTP mime string
+#
+# @example const char* mime = webui_get_mime_type("foo.png");
+declare get_mime_type with file as ref to frozen char into ref to frozen char
+
+# @brief Set the SSL/TLS certificate and the private key content, both in PEM
+# format. This works only with `webui-2-secure` library. If set empty WebUI
+# will generate a self-signed certificate.
+#
+# @param certificate_pem The SSL/TLS certificate content in PEM format
+# @param private_key_pem The private key content in PEM format
+#
+# @return Returns True if the certificate and the key are valid.
+#
+# @example bool ret = webui_set_tls_certificate("-----BEGIN
+# CERTIFICATE-----\n...", "-----BEGIN PRIVATE KEY-----\n...");
+declare set_tls_certificate with certificate_pem as ref to frozen char, private_key_pem as ref to frozen char into bool
+
+# @brief Run JavaScript without waiting for the response. All clients.
+#
+# @param window The window number
+# @param script The JavaScript to be run
+#
+# @example webui_run(myWindow, "alert('Hello');");
+declare run with window as size_t, script as ref to frozen char into void
+
+# @brief Run JavaScript without waiting for the response. Single client.
+#
+# @param e The event struct
+# @param script The JavaScript to be run
+#
+# @example webui_run_client(e, "alert('Hello');");
+declare run_client with e as ref to webui_event_t, script as ref to frozen char into void
+
+# @brief Run JavaScript and get the response back. Work only in single client mode.
+# Make sure your local buffer can hold the response.
+#
+# @param window The window number
+# @param script The JavaScript to be run
+# @param timeout The execution timeout in seconds
+# @param buffer The local buffer to hold the response
+# @param buffer_length The local buffer size
+#
+# @return Returns True if there is no execution error
+#
+# @example bool err = webui_script(myWindow, "return 4 + 6;", 0, myBuffer, myBufferSize);
+declare script with window as size_t, script as ref to frozen char, timeout as size_t, buffer as ref to char, buffer_length as size_t into bool
+
+# @brief Run JavaScript and get the response back. Single client.
+# Make sure your local buffer can hold the response.
+#
+# @param e The event struct
+# @param script The JavaScript to be run
+# @param timeout The execution timeout in seconds
+# @param buffer The local buffer to hold the response
+# @param buffer_length The local buffer size
+#
+# @return Returns True if there is no execution error
+#
+# @example bool err = webui_script_client(e, "return 4 + 6;", 0, myBuffer, myBufferSize);
+declare script_client with e as ref to webui_event_t, script as ref to frozen char, timeout as size_t, buffer as ref to char, buffer_length as size_t into bool
+
+# @brief Chose between Deno and Nodejs as runtime for .js and .ts files.
+#
+# @param window The window number
+# @param runtime Deno | Bun | Nodejs | None
+#
+# @example webui_set_runtime(myWindow, Deno);
+declare set_runtime with window as size_t, runtime as size_t into void
+
+# @brief Get how many arguments there are in an event.
+#
+# @param e The event struct
+#
+# @return Returns the arguments count.
+#
+# @example size_t count = webui_get_count(e);
+declare get_count with e as ref to webui_event_t into size_t
+
+# @brief Get an argument as integer at a specific index.
+#
+# @param e The event struct
+# @param index The argument position starting from 0
+#
+# @return Returns argument as integer
+#
+# @example long long int myNum = webui_get_int_at(e, 0);
+declare get_int_at with e as ref to webui_event_t, index as size_t into i64
+
+# @brief Get the first argument as integer.
+#
+# @param e The event struct
+#
+# @return Returns argument as integer
+#
+# @example long long int myNum = webui_get_int(e);
+declare get_int with e as ref to webui_event_t into i64
+
+# @brief Get an argument as float at a specific index.
+#
+# @param e The event struct
+# @param index The argument position starting from 0
+#
+# @return Returns argument as float
+#
+# @example double myNum = webui_get_float_at(e, 0);
+declare get_float_at with e as ref to webui_event_t, index as size_t into f64
+
+# @brief Get the first argument as float.
+#
+# @param e The event struct
+#
+# @return Returns argument as float
+#
+# @example double myNum = webui_get_float(e);
+declare get_float with e as ref to webui_event_t into f64
+
+# @brief Get an argument as string at a specific index.
+#
+# @param e The event struct
+# @param index The argument position starting from 0
+#
+# @return Returns argument as string
+#
+# @example const char* myStr = webui_get_string_at(e, 0);
+declare get_string_at with e as ref to webui_event_t, index as size_t into ref to frozen char
+
+# @brief Get the first argument as string.
+#
+# @param e The event struct
+#
+# @return Returns argument as string
+#
+# @example const char* myStr = webui_get_string(e);
+declare get_string with e as ref to webui_event_t into ref to frozen char
+
+# @brief Get an argument as boolean at a specific index.
+#
+# @param e The event struct
+# @param index The argument position starting from 0
+#
+# @return Returns argument as boolean
+#
+# @example bool myBool = webui_get_bool_at(e, 0);
+declare get_bool_at with e as ref to webui_event_t, index as size_t into bool
+
+# @brief Get the first argument as boolean.
+#
+# @param e The event struct
+#
+# @return Returns argument as boolean
+#
+# @example bool myBool = webui_get_bool(e);
+declare get_bool with e as ref to webui_event_t into bool
+
+# @brief Get the size in bytes of an argument at a specific index.
+#
+# @param e The event struct
+# @param index The argument position starting from 0
+#
+# @return Returns size in bytes
+#
+# @example size_t argLen = webui_get_size_at(e, 0);
+declare get_size_at with e as ref to webui_event_t, index as size_t into size_t
+
+# @brief Get size in bytes of the first argument.
+#
+# @param e The event struct
+#
+# @return Returns size in bytes
+#
+# @example size_t argLen = webui_get_size(e);
+declare get_size with e as ref to webui_event_t into size_t
+
+# @brief Return the response to JavaScript as integer.
+#
+# @param e The event struct
+# @param n The integer to be send to JavaScript
+#
+# @example webui_return_int(e, 123);
+declare return_int with e as ref to webui_event_t, n as i64 into void
+
+# @brief Return the response to JavaScript as float.
+#
+# @param e The event struct
+# @param f The float number to be send to JavaScript
+#
+# @example webui_return_float(e, 123.456);
+declare return_float with e as ref to webui_event_t, f as f64 into void
+
+# @brief Return the response to JavaScript as string.
+#
+# @param e The event struct
+# @param n The string to be send to JavaScript
+#
+# @example webui_return_string(e, "Response...");
+declare return_string with e as ref to webui_event_t, s as ref to frozen char into void
+
+# @brief Return the response to JavaScript as boolean.
+#
+# @param e The event struct
+# @param n The boolean to be send to JavaScript
+#
+# @example webui_return_bool(e, true);
+declare return_bool with e as ref to webui_event_t, b as bool into void
+
+# @brief Bind a specific HTML element click event with a function. Empty element means all events.
+#
+# @param window The window number
+# @param element The element ID
+# @param func The callback as myFunc(Window, EventType, Element, EventNumber, BindID)
+#
+# @return Returns unique bind ID
+#
+# @example size_t id = webui_interface_bind(myWindow, "myID", myCallback);
+declare interface_bind with window as size_t, element as ref to frozen char, func as ref to weave with p0 as size_t, p1 as size_t, p2 as ref to char, p3 as size_t, p4 as size_t into void into size_t
+
+# @brief When using `webui_interface_bind()`, you may need this function to easily set a response.
+#
+# @param window The window number
+# @param event_number The event number
+# @param response The response as string to be send to JavaScript
+#
+# @example webui_interface_set_response(myWindow, e->event_number, "Response...");
+declare interface_set_response with window as size_t, event_number as size_t, response as ref to frozen char into void
+
+# @brief Check if the app still running.
+#
+# @return Returns True if app is running
+#
+# @example bool status = webui_interface_is_app_running();
+declare interface_is_app_running into bool
+
+# @brief Get a unique window ID.
+#
+# @param window The window number
+#
+# @return Returns the unique window ID as integer
+#
+# @example size_t id = webui_interface_get_window_id(myWindow);
+declare interface_get_window_id with window as size_t into size_t
+
+# @brief Get an argument as string at a specific index.
+#
+# @param window The window number
+# @param event_number The event number
+# @param index The argument position
+#
+# @return Returns argument as string
+#
+# @example const char* myStr = webui_interface_get_string_at(myWindow, e->event_number, 0);
+declare interface_get_string_at with window as size_t, event_number as size_t, index as size_t into ref to frozen char
+
+# @brief Get an argument as integer at a specific index.
+#
+# @param window The window number
+# @param event_number The event number
+# @param index The argument position
+#
+# @return Returns argument as integer
+#
+# @example long long int myNum = webui_interface_get_int_at(myWindow, e->event_number, 0);
+declare interface_get_int_at with window as size_t, event_number as size_t, index as size_t into i64
+
+# @brief Get an argument as float at a specific index.
+#
+# @param window The window number
+# @param event_number The event number
+# @param index The argument position
+#
+# @return Returns argument as float
+#
+# @example double myFloat = webui_interface_get_int_at(myWindow, e->event_number, 0);
+declare interface_get_float_at with window as size_t, event_number as size_t, index as size_t into f64
+
+# @brief Get an argument as boolean at a specific index.
+#
+# @param window The window number
+# @param event_number The event number
+# @param index The argument position
+#
+# @return Returns argument as boolean
+#
+# @example bool myBool = webui_interface_get_bool_at(myWindow, e->event_number, 0);
+declare interface_get_bool_at with window as size_t, event_number as size_t, index as size_t into bool
+
+# @brief Get the size in bytes of an argument at a specific index.
+#
+# @param window The window number
+# @param event_number The event number
+# @param index The argument position
+#
+# @return Returns size in bytes
+#
+# @example size_t argLen = webui_interface_get_size_at(myWindow, e->event_number, 0);
+declare interface_get_size_at with window as size_t, event_number as size_t, index as size_t into size_t
+
+# @brief Show a window using embedded HTML, or a file. If the window is already
+# open, it will be refreshed. Single client.
+#
+# @param window The window number
+# @param event_number The event number
+# @param content The HTML, URL, Or a local file
+#
+# @return Returns True if showing the window is successed.
+#
+# @example webui_show_client(e, "<html>...</html>"); |
+# webui_show_client(e, "index.html"); | webui_show_client(e, "http://...");
+declare interface_show_client with window as size_t, event_number as size_t, content as ref to frozen char into bool
+
+# @brief Close a specific client.
+#
+# @param window The window number
+# @param event_number The event number
+#
+# @example webui_close_client(e);
+declare interface_close_client with window as size_t, event_number as size_t into void
+
+# @brief Safely send raw data to the UI. Single client.
+#
+# @param window The window number
+# @param event_number The event number
+# @param function The JavaScript function to receive raw data: `function
+# myFunc(myData){}`
+# @param raw The raw data buffer
+# @param size The raw data size in bytes
+#
+# @example webui_send_raw_client(e, "myJavaScriptFunc", myBuffer, 64);
+declare interface_send_raw_client with window as size_t, event_number as size_t, function as ref to frozen char, raw as ref to frozen void, size as size_t into void
+
+# @brief Navigate to a specific URL. Single client.
+#
+# @param window The window number
+# @param event_number The event number
+# @param url Full HTTP URL
+#
+# @example webui_navigate_client(e, "http://domain.com");
+declare interface_navigate_client with window as size_t, event_number as size_t, url as ref to frozen char into void
+
+# @brief Run JavaScript without waiting for the response. Single client.
+#
+# @param window The window number
+# @param event_number The event number
+# @param script The JavaScript to be run
+#
+# @example webui_run_client(e, "alert('Hello');");
+declare interface_run_client with window as size_t, event_number as size_t, script as ref to frozen char into void
+
+# @brief Run JavaScript and get the response back. Single client.
+# Make sure your local buffer can hold the response.
+#
+# @param window The window number
+# @param event_number The event number
+# @param script The JavaScript to be run
+# @param timeout The execution timeout in seconds
+# @param buffer The local buffer to hold the response
+# @param buffer_length The local buffer size
+#
+# @return Returns True if there is no execution error
+#
+# @example bool err = webui_script_client(e, "return 4 + 6;", 0, myBuffer, myBufferSize);
+declare interface_script_client with window as size_t, event_number as size_t, script as ref to frozen char, timeout as size_t, buffer as ref to char, buffer_length as size_t into bool
