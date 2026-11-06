@@ -1,6 +1,7 @@
 [project]
 name = "PenguScript-WebUI"
-version = "0.1.0"
+import = "webui"
+version = "0.3.0"
 entry = "pengu/webui.d.pengu"
 output = "c"
 output_name = "webui"

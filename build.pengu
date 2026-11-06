@@ -1,0 +1,191 @@
+## build.pengu -- descarga y verifica la parte nativa de PenguScript-WebUI.
+##
+## Se ejecuta solo con `psc add ... --trust` / `psc update --trust`.
+## Manualmente: `psc run build.pengu -- --force`.
+##
+## Orden:
+##   1. $WEBUI_LIB (archivo .a ya compilado)
+##   2. lib/libwebui.a (ya preparado)
+##   3. release fijada 2.5.0-beta.3 para Linux/macOS/Windows, verificada con
+##      SHA-256 antes de extraerla.
+##
+## El header include/webui.h commiteado es autoritativo: no se sobrescribe.
+## Si el asset no existe para esta plataforma, exporta WEBUI_LIB o compila
+## WebUI desde fuente y apunta WEBUI_LIB al .a resultante.
+
+import std.archivum
+import std.digest
+import std.rites
+import std.spark
+
+const WEBUI_VERSION as string is "2.5.0-beta.3"
+const RELEASE_URL as string is "https://github.com/webui-dev/webui/releases/download/2.5.0-beta.3/{asset}"
+
+weave log with msg as string into void:
+    calling spark.println with "[webui] {msg}"
+
+weave forced into bool:
+    var args as list of string is calling rites.get_args
+    var i as int is 0
+    var out as bool is false
+    while i < args.len:
+        if (args at i) == "--force" or (args at i) == "--rebuild":
+            set out is true
+        banish args at i
+        set i is i + 1
+    banish args
+    return out
+
+weave asset_name into string:
+    var os as string is calling rites.uname
+    var arch as string is calling rites.os_arch
+    var out as string is ""
+    if os == "Linux":
+        if arch == "x64":
+            set out is "webui-linux-gcc-x64.zip"
+        else if arch == "arm64":
+            set out is "webui-linux-gcc-arm64.zip"
+        else if arch == "arm":
+            set out is "webui-linux-gcc-arm.zip"
+    else if os == "Darwin":
+        if arch == "x64":
+            set out is "webui-macos-clang-x64.zip"
+        else if arch == "arm64":
+            set out is "webui-macos-clang-arm64.zip"
+    else if os == "Windows":
+        if arch == "x64":
+            set out is "webui-windows-gcc-x64.zip"
+    banish os
+    banish arch
+    return out
+
+weave expected_sha with asset as string into string:
+    if asset == "webui-linux-gcc-x64.zip":
+        return "cda96fdde0b4161d0ebe3c2f5d374f04b9463d5e912c4c7cd2a605332a9b386c"
+    if asset == "webui-linux-gcc-arm64.zip":
+        return "d2863f80b228f3a17f39af181a6949e1276b321610ae8977231645bdd913ee68"
+    if asset == "webui-linux-gcc-arm.zip":
+        return "96a7aaabfd179b294ccd1dd0517c66395f14caf64bb1b98818b5b44839999bdd"
+    if asset == "webui-macos-clang-x64.zip":
+        return "45e6320b1358d67bfdccc71fe6e443e389394ea08da8299ebeeadb47ebb54514"
+    if asset == "webui-macos-clang-arm64.zip":
+        return "556baa59e231057239f616ebe04d3fe9e1ea575ff79ce93981de7eed89db902a"
+    if asset == "webui-windows-gcc-x64.zip":
+        return "477b410ead0f69cf02acea150afab39c1e6e52ebadf91fd6420f0b49075d123b"
+    return ""
+
+weave run_extract with zip as string, into_dir as string into bool:
+    var u as string is "unzip -o -q \"{zip}\" -d \"{into_dir}\""
+    var rc as int is calling rites.run_shell with u
+    banish u
+    if rc == 0:
+        return true
+    var t as string is "tar -xf \"{zip}\" -C \"{into_dir}\""
+    var rc2 as int is calling rites.run_shell with t
+    banish t
+    return rc2 == 0
+
+weave main into int:
+    calling archivum.create_dir with "lib", true
+    calling archivum.create_dir with "build", true
+    if (not calling forced) and calling archivum.is_file with "lib/libwebui.a":
+        calling log with "libwebui.a already present; nothing to do"
+        return 0
+
+    var envlib as string is calling rites.getenv_or with "WEBUI_LIB", ""
+    if envlib length > 0:
+        if not calling archivum.is_file with envlib:
+            calling spark.eprintln with "[webui] WEBUI_LIB is not a file: {envlib}"
+            banish envlib
+            return 1
+        var ok0 as bool is calling archivum.copy_file with envlib, "lib/libwebui.a", true
+        banish envlib
+        if ok0:
+            calling log with "staged WEBUI_LIB -> lib/libwebui.a"
+            return 0
+        return 1
+    banish envlib
+
+    var asset as string is calling asset_name
+    if asset length == 0:
+        calling spark.eprintln with "[webui] no prebuilt archive for this OS/arch"
+        calling spark.eprintln with "[webui] export WEBUI_LIB=/ruta/libwebui.a or WEBUI_ASSET=<asset>.zip"
+        banish asset
+        return 1
+    var override as string is calling rites.getenv_or with "WEBUI_ASSET", ""
+    if override length > 0:
+        banish asset
+        set asset is override
+    else:
+        banish override
+
+    var zip as string is "build/{asset}"
+    var url as string is "https://github.com/webui-dev/webui/releases/download/{WEBUI_VERSION}/{asset}"
+    var dl as string is "curl -L --fail --silent --show-error -o \"{zip}\" \"{url}\""
+    calling log with "downloading {url}"
+    var rc as int is calling rites.run_shell with dl
+    banish dl
+    if rc != 0:
+        calling spark.eprintln with "[webui] download failed"
+        banish asset
+        banish zip
+        banish url
+        return 1
+
+    var expected as string is calling expected_sha with asset
+    if expected length > 0:
+        var got as maybe string is calling digest.sha256_file with zip
+        if not got.is_present:
+            calling spark.eprintln with "[webui] cannot hash downloaded archive"
+            banish expected
+            banish asset
+            banish zip
+            banish url
+            return 1
+        var hex as string is got.value
+        if hex != expected:
+            calling spark.eprintln with "[webui] SHA-256 mismatch for {asset}"
+            banish hex
+            banish got
+            banish expected
+            banish asset
+            banish zip
+            banish url
+            return 1
+        banish hex
+        banish got
+    banish expected
+
+    var dist as string is "build/webui-dist"
+    var ign as bool is calling archivum.remove_dir with dist, true
+    calling archivum.create_dir with dist, true
+    if not calling run_extract with zip, dist:
+        calling spark.eprintln with "[webui] cannot extract {zip} (install unzip or tar)"
+        banish asset
+        banish zip
+        banish url
+        banish dist
+        return 1
+    var base as string is asset at 0 to (asset length - 4)
+    var member as string is "{dist}/{base}/libwebui-2-static.a"
+    if not calling archivum.is_file with member:
+        calling spark.eprintln with "[webui] archive does not contain {base}/libwebui-2-static.a"
+        banish base
+        banish member
+        banish asset
+        banish zip
+        banish url
+        banish dist
+        return 1
+    var ok as bool is calling archivum.copy_file with member, "lib/libwebui.a", true
+    banish base
+    banish member
+    banish asset
+    banish zip
+    banish url
+    banish dist
+    if not ok:
+        calling spark.eprintln with "[webui] cannot stage lib/libwebui.a"
+        return 1
+    calling log with "staged {WEBUI_VERSION} -> lib/libwebui.a"
+    return 0

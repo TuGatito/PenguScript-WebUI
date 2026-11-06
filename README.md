@@ -12,12 +12,16 @@ The binding covers the complete **WebUI 2.5.0-beta.3** C API in
 
 From any PenguScript project:
 
-    pengu add <this-repo-url> --trust
+    psc add <this-repo-url> --trust
 
-`--trust` is required the first time because `build.py` stages the native
+`--trust` is required the first time because `build.pengu` stages the native
 library. It uses, in order: `$WEBUI_LIB`, an archive already in `lib/`, or the
-pinned WebUI release for the current OS/arch (downloaded from GitHub). See
-[`build.py`](build.py) for the overrides.
+pinned WebUI 2.5.0-beta.3 release for the current OS/arch. The release ZIP is
+verified with SHA-256 before extraction. Override with `WEBUI_LIB`,
+`WEBUI_ASSET` or `WEBUI_VERSION` (see [`build.pengu`](build.pengu)).
+
+The manifest declares `import = "webui"`, so `psc add` installs the package in
+`lib/webui/` and the consumer writes `import webui`.
 
 ## Use
 
@@ -76,7 +80,7 @@ with:
 
     python3 tools/generate_binding.py
 
-The script runs `pengu bind` with `--prefix webui_` and then applies the four
+The script runs `psc bind` with `--prefix webui_` and then applies the four
 fixes WebUI's header needs (enum-tag typedefs from `include/webui_pengu.h`,
 inline callback types, `WEBUI_VERSION`, per-platform `link` lines); see the
 script's docstring for the why. Do not edit `pengu/webui.d.pengu` by hand.
@@ -86,7 +90,7 @@ script's docstring for the why. Do not edit `pengu/webui.d.pengu` by hand.
 ```
 PenguScript-WebUI/
 |-- pengu.toml
-|-- build.py                     # stages the native library into lib/
+|-- build.pengu                  # downloads/verifies the native library into lib/
 |-- pengu/
 |   `-- webui.d.pengu            # generated declarations (include/link/declare)
 |-- tools/
@@ -97,7 +101,7 @@ PenguScript-WebUI/
 |-- examples/
 |   `-- hello.pengu              # minimal browser window + callback
 |-- c/                           # optional C glue (empty for this binding)
-`-- lib/                         # libwebui.a, staged by build.py
+`-- lib/                         # libwebui.a, staged by build.pengu
 ```
 
 The `link "webui"` statements in [`pengu/webui.d.pengu`](pengu/webui.d.pengu)
